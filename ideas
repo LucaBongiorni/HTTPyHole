@@ -1,0 +1,73 @@
+Stenographic HTTP reverse python shell
+
+ideas ideas ideas
+
+-can run on any platform
+-hides data stream in chunks base32'd and encrypted inside of HTTP request headers
+-command server can act as a relay from any owned server capable of running a php or cgi script (access request header fields)
+-works undetected through most firewalls, IDS, and security 'specialists'
+-command server in relay mode can essentially pass the data on without knowing contents (decryption need not happen at relay)
+-relays can pass to relays, chaining allows greater anonimity going from jurisdiction to jurisdiction
+-any bogus http session can be passed through to make it look legit, the payload is the worst place to store data stream
+-python mode (injecting pure python into a forked process avoiding disk) or cmd shell mode (default) available for flexibility
+-allows configuration of which http response/request fields to use for maximum avoidance of logging, fine tune your hacks!
+-allows for single to multiple use http header fields to limit number of http sessions required
+-allows to serve up random files based on the GET request: a folder per file type where a random file in said folder is returned
+-the GET requests should also be randomized
+-timeout for the chunks so they can be in bursts and not extremely suspicious streams
+-add more HTTP headers!!
+-add configurable http header option to allow any header field to be used
+-add blocksize configurable inside options
+
+optional features I will likely include anyway:
+-upload/download to and from target
+-add shell constant call back with configurable timeouts
+-setting config inside of tunnel at runtime
+-configuration via command line for both shell and listen
+-add a -e option like perl for command on connect
+-add plugin support sent over stream not touching disk
+-AES encryption?
+-add ability to distribute across multiple listeners
+-add connection keep-alive support to prevent IDS from going crazy thinking there
+    is outbound connect flooding going on (current implementation, meh)
+-add ability to specify files for specific requests
+
+Specification for the alpha version:
+1. Shell initiates connection to listener on port
+2. Listener waits for If-None-Match to be equal to INIT_CONNECTION STRING
+3. Listener awaits user command
+4. Listener encodes and chunks user command
+5. Listener adds Retry-After HTTP header to response
+
+brainstorm:
+ideas for listener(the attacker/relay):
+-use etags to hide the chunks?
+-use P3P, less known and less likely to be logged
+ideas for client(the shell):
+-use if match and if not match fields, these are not a logging priority
+
+further down road:
+-read HTTP session from file to imitate, replacing http header fields for data stream injection.. makes it all legit
+-allow for TCP tunneling through http field headers... 
+-add a control channel, channels can be split via flags found in the fields
+
+
+inspired by: https://www.secmaniac.com/blog/2012/03/08/building-a-native-http-shell-with-aes-in-python/
+
+-transparent http proxy tunneling (can be adapted for our purposes later):
+http://code.activestate.com/recipes/577643-transparent-http-tunnel-for-python-sockets-to-be-u/
+
+interesting example firewall bypasses:
+http://gray-world.net/links.shtml
+
+similar idea:
+http://gray-world.net/projects/papers/cooking_channels.txt
+
+covers briefly:
+http://gray-world.net/projects/papers/covert_paper.txt <---
+
+sample pentest application:
+load u3 usb dongle with autorun to load a stager (stage 0) which injects 1st stage into trusted process (after this it is
+safe to unplug the usb and walk away). Trusted process's EIP now controlled gets point to 1st stage which downloads
+the HTTPyHole onto disk and the setup utility and forks to execute both, EIP returned to normal. HTTPyHole establishes
+tunnel for whatever setup had in mind for installing (encoded meterpreter, etc)  -- fast pwn
