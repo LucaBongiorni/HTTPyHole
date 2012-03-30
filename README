@@ -1,0 +1,26 @@
+HTTPyHole v0.1 - Reverse stenographic HTTP shell with several options
+
+listen.py Usage:
+listen.py
+        -v              --version
+        -p              --port port
+        -d              --debug
+        -w              --wait time(float)
+        -e              --execute "command"
+        -b              --batch-execute file.bat
+        -f              --file payload1.gif,payload2.txt,playload3.pdf
+        -h              --help
+NOTE: It is highly advisable to use the -f option, otherwise blank HTTP responses from listener!
+
+shell.py usage:
+shell.py <host> <port>
+
+upcoming features:
+file upload/download
+
+stream compression (lowers number of HTTP requests needed to get data out)
+
+and finally -f option will be implemented on a per filetype basis:
+ex: GET /images/moo.gif will return an actual image with proper headers,
+currently it will return only the HTTP headers from our shell.
+
